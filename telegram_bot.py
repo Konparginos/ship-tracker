@@ -16,6 +16,7 @@ import threading
 IMO = "9005871"
 TELEGRAM_BOT_TOKEN = "8977424709:AAG7rEB7QhNvG3_ypI7tabRQw66TUQ78Zbc"
 TELEGRAM_CHAT_ID = "6198515219"
+AISSTREAM_API_KEY = "e6554b6275451b38b079ca32a8c4130dad4b3581"
 
 TARGET_LAT = 37.8447
 TARGET_LON = 23.7744
@@ -49,19 +50,36 @@ def save_state(state):
 
 def get_ship_position():
     try:
-        url = f"https://www.vesselfinder.com/api/pub/click/{IMO}"
-        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+        # Use AIS Stream API
+        url = "https://api.aisstream.io/v0/search"
+        headers = {"Authorization": f"Bearer {AISSTREAM_API_KEY}"}
+        params = {"imo": IMO}
+
+        logger.info(f"Fetching from AIS Stream for IMO {IMO}...")
+        r = requests.get(url, headers=headers, params=params, timeout=10)
+        logger.info(f"Response status: {r.status_code}")
+
         if r.status_code == 200:
             data = r.json()
-            if 'position' in data:
-                return {
-                    'lat': data['position']['latitude'],
-                    'lon': data['position']['longitude'],
-                    'speed': data.get('speed', 0),
-                    'course': data.get('course', 0),
-                }
+            logger.info(f"Response data: {data}")
+            if isinstance(data, list) and len(data) > 0:
+                ship = data[0]  # Get first result
+                if "latitude" in ship and "longitude" in ship:
+                    result = {
+                        'lat': ship['latitude'],
+                        'lon': ship['longitude'],
+                        'speed': ship.get('sog', 0),  # Speed Over Ground
+                        'course': ship.get('cog', 0),  # Course Over Ground
+                    }
+                    logger.info(f"Position found: {result}")
+                    return result
+        else:
+            logger.error(f"AIS Stream error: {r.status_code}")
+            logger.error(f"Response: {r.text[:500]}")
     except Exception as e:
-        logger.error(f"Fetch error: {e}")
+        logger.error(f"Fetch error: {type(e).__name__}: {e}")
+
+    logger.warning(f"Could not get position for IMO {IMO}")
     return None
 
 
