@@ -181,58 +181,66 @@ async def check_ship(context):
 
 async def location_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /location command"""
-    position = get_ship_position()
+    try:
+        position = get_ship_position()
 
-    if not position:
-        await update.message.reply_text("❌ Could not fetch ship position")
-        return
+        if not position:
+            await update.message.reply_text("❌ Could not fetch ship position. VesselFinder API may be down.")
+            return
 
-    state = load_state()
-    distance = calculate_distance(position['lat'], position['lon'], TARGET_LAT, TARGET_LON)
+        state = load_state()
+        distance = calculate_distance(position['lat'], position['lon'], TARGET_LAT, TARGET_LON)
 
-    in_geofence = distance <= GEOFENCE_RADIUS_KM
-    status = "🔴 IN GEOFENCE" if in_geofence else "🟢 Outside geofence"
+        in_geofence = distance <= GEOFENCE_RADIUS_KM
+        status = "🔴 IN GEOFENCE" if in_geofence else "🟢 Outside geofence"
 
-    message = (
-        f"🚢 <b>Ship Position</b>\n\n"
-        f"<b>Location:</b>\n"
-        f"Latitude: {position['lat']:.4f}\n"
-        f"Longitude: {position['lon']:.4f}\n\n"
-        f"<b>Vouliagmeni:</b>\n"
-        f"Distance: {distance:.2f} km\n"
-        f"Status: {status}\n\n"
-        f"<b>Movement:</b>\n"
-        f"Speed: {position['speed']} kts\n"
-        f"Course: {position['course']}°\n\n"
-        f"<b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    )
+        message = (
+            f"🚢 <b>Ship Position</b>\n\n"
+            f"<b>Location:</b>\n"
+            f"Latitude: {position['lat']:.4f}\n"
+            f"Longitude: {position['lon']:.4f}\n\n"
+            f"<b>Vouliagmeni:</b>\n"
+            f"Distance: {distance:.2f} km\n"
+            f"Status: {status}\n\n"
+            f"<b>Movement:</b>\n"
+            f"Speed: {position['speed']} kts\n"
+            f"Course: {position['course']}°\n\n"
+            f"<b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
 
-    await update.message.reply_text(message, parse_mode='HTML')
+        await update.message.reply_text(message, parse_mode='HTML')
+    except Exception as e:
+        logger.error(f"Error in location_command: {e}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /status command"""
-    state = load_state()
+    try:
+        state = load_state()
 
-    if state['last_lat'] is None:
-        await update.message.reply_text("⏳ No data yet. Waiting for first check...")
-        return
+        if state['last_lat'] is None:
+            await update.message.reply_text("⏳ No data yet. Waiting for first check...")
+            return
 
-    distance = state['last_distance']
-    in_geofence = state['in_geofence']
-    status = "🔴 IN GEOFENCE" if in_geofence else "🟢 Outside geofence"
+        distance = state['last_distance'] or 0
+        in_geofence = state['in_geofence']
+        status = "🔴 IN GEOFENCE" if in_geofence else "🟢 Outside geofence"
 
-    message = (
-        f"📊 <b>Tracker Status</b>\n\n"
-        f"<b>Current Status:</b> {status}\n"
-        f"<b>Distance to Vouliagmeni:</b> {distance:.2f} km\n"
-        f"<b>Last Position:</b> ({state['last_lat']:.4f}, {state['last_lon']:.4f})\n"
-        f"<b>Last Update:</b> {state['last_alert']}\n\n"
-        f"<b>Bot Status:</b> ✅ Running\n"
-        f"<b>Check Interval:</b> Every 10 minutes"
-    )
+        message = (
+            f"📊 <b>Tracker Status</b>\n\n"
+            f"<b>Current Status:</b> {status}\n"
+            f"<b>Distance to Vouliagmeni:</b> {distance:.2f} km\n"
+            f"<b>Last Position:</b> ({state['last_lat']:.4f}, {state['last_lon']:.4f})\n"
+            f"<b>Last Update:</b> {state['last_alert']}\n\n"
+            f"<b>Bot Status:</b> ✅ Running\n"
+            f"<b>Check Interval:</b> Every 10 minutes"
+        )
 
-    await update.message.reply_text(message, parse_mode='HTML')
+        await update.message.reply_text(message, parse_mode='HTML')
+    except Exception as e:
+        logger.error(f"Error in status_command: {e}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
